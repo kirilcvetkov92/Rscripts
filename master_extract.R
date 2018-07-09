@@ -40,8 +40,8 @@ connect.string <- paste(
   "(DESCRIPTION=",
   "(ADDRESS=(PROTOCOL=tcp)(HOST=", host, ")(PORT=", port, "))",
   "(CONNECT_DATA=(SID=", sid, ")))", sep = "")
-con_write <- dbConnect(drv, username = "BL_ADV_DS",
-                       password = "T_XJvU6qA18t883lC606co",dbname=connect.string)
+con_write <- dbConnect(drv, username = "",
+                       password = "",dbname=connect.string)
 #--- trx ------------------------------------------------
 Sys.setenv(TZ = "GMT")
 Sys.setenv(ORA_SDTZ = "GMT")
