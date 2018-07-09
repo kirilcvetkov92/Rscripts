@@ -1,0 +1,172 @@
+##########################################################
+#       Create & Test a Logistic Regression Model        #
+##########################################################
+
+# Use logistic regression equation of vehicle transmission 
+# in the data set mtcars to estimate the probability of 
+# a vehicle being fitted with a manual transmission 
+# based on horsepower (hp) and weight (wt)
+
+# If on R Server 9.0, load mrsdeploy package now
+library(mrsdeploy)
+
+##########################################################
+
+remoteLogin("http://localhost:12800", 
+            username = "", 
+            password = "",
+            session = FALSE)
+# api <- publishService(
+#   "getPSPdata",
+#   code = getPSPdata,
+#   inputs = list(fundId = "character"),
+#   outputs = list(answer = "data.frame"),
+#   v = "v1.0.0"
+# )
+api <- publishService(
+  "mainFalcon",
+  code = mainFalcon,
+  inputs = list(bc = "character", cd = "character",
+                rm = "character", ccy = "character",
+                fundId = "character", sm = "character"),
+  outputs = list(answer = "data.frame"),
+  v = "v1.0.0"
+)
+api <- publishService(
+  "mainDBTest",
+  code = mainDBTest,
+  inputs = list(),
+  outputs = list(answer = "data.frame"),
+  v = "v1.0.0"
+)
+
+
+#TEST DATA
+# if (length(args)==2){
+   bc <- 'CH'
+   cd <- 'CH'
+   rm <- 'CH'
+   ccy <- 'CHF'
+   fundId <- 'FS0000CJ25'
+   sm <- '13'
+# }
+   
+   fundId <- 'FSUSA08XE7'
+#   mainFalcon(bc,cd,rm,ccy,fundId,sm)
+   
+   
+   
+result <- api$mainFalcon(bc,cd,rm,ccy,fundId,sm)
+#result <- api$getPSPdata(fundId)
+print(result$output("answer")) 
+
+mainFalcon <- function(bc, cd, rm, ccy, fundId, sm) {
+  getPSPdata <-function(fundId){
+    library(httr)
+    library(jsonlite)
+    url <- paste('http://dickeberta/falconfund2/index.js?fundid=', fundId, sep = "")
+    curlout <- GET(url)
+    instrumentDetails <- jsonlite::fromJSON( content(curlout,"text",encoding = "UTF-8"))
+    instrumentDetails$chargeScore <- round((1-rank(with(instrumentDetails, 10-log10(charge*initialInvestment)))/nrow(instrumentDetails))*10)
+    instrumentDetails <- instrumentDetails[order(instrumentDetails$chargeScore),]
+    return(instrumentDetails)
+  }
+  
+  
+  output <- getPSPdata(fundId)
+  return(output)
+}
+
+mainDBTest <- function(){
+  library(ROracle)
+  sql_string <- "select * from BL_ADV_DS.IPP_DATA"
+  drv <- dbDriver("Oracle")
+  # Create the connection string
+  host <- "PPC1"
+  port <- 1702
+  sid <- "PPC1"
+  connect.string <- paste(
+    "(DESCRIPTION=",
+    "(ADDRESS=(PROTOCOL=tcp)(HOST=", host, ")(PORT=", port, "))",
+    "(CONNECT_DATA=(SID=", sid, ")))", sep = "")
+  con <- dbConnect(drv, username = "BL_DM_ISG_CONS",
+                   password = "wdck1876",dbname=connect.string)
+  
+  #--- data ------------------------------------------------
+  res  <- dbSendQuery(con, sql_string, prefetch = TRUE)
+  #-------------------------------------------------
+  system.time({
+    # Do something that takes time
+    data <- fetch(res)
+  })
+  dbDisconnect(con) 
+  newnames <- substr(names(data), start=1, stop=30)
+  names(data) <- newnames
+ 
+  bla <- data[,c("Booking Center","Portfolio ID","EPA CODE","Mandate Category Since")]
+  bla$`Mandate Category Since` <- as.Date(bla$`Mandate Category Since`)
+  return(bla) 
+}
+
+testParallel <- function(){
+  pbirthdaysim <- function(n, nsims=1000, feb29=TRUE) {
+    ## Using nsims simulations, estimate the probability
+    ## that a room of n people includes a shared birthday
+    
+    bdays <- 1:366 
+    ## Feb 29 represented as day 366
+    ## We'll sample other days 4 times as often
+    ## compared to day 366
+    probs <- c(rep(4,365),1)
+    
+    if(!feb29) {
+      # drop Feb 29 from bdays and probs
+      bdays <- bdays[-366]
+      probs <- probs[-366]
+    }
+    probs <- probs/sum(probs)
+    
+    anydup <- function(ignored) 
+      ## simulate n birthdays, return TRUE if
+      ## there's a duplicate
+      any(duplicated(
+        sample(bdays, n, prob=probs, replace=TRUE)))
+    
+    sum(sapply(seq(nsims), anydup)) / nsims
+  }
+  library(doParallel)
+  library(foreach)
+  cl <- makeCluster(2)
+  registerDoParallel(cl)
+  bdayp <- foreach(n=1:100) %do% pbirthdaysim(n)
+  #bdayp <- unlist(bdapy)
+  return(bdayp)
+}
+testfunc <- function(x){
+  out <- x**2
+  return(out)
+}
+
+system.time({
+  # Do something that takes time
+  rxExec(testfunc, x = 2 )
+})
+system.time({
+  # Do something that takes time
+  rxExec(mainDBTest, elemType = "cores" )
+})
+connectionString <-
+  "Driver={Roracle};Database=PPC1"
+claimsOdbcSource <-
+  RxOdbcData(sqlQuery = "SELECT * FROM claims",
+             connectionString = connectionString)
+# Create an xdf file name
+claimsXdfFileName <- file.path(tempdir(), "importedClaims.xdf")
+# Import the data into the xdf file
+rxImport(claimsOdbcSource, claimsXdfFileName, overwrite = TRUE)
+
+
+
+
+
+updateService()
