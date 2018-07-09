@@ -13,8 +13,8 @@ connect.string <- paste(
   "(DESCRIPTION=",
   "(ADDRESS=(PROTOCOL=tcp)(HOST=", host, ")(PORT=", port, "))",
   "(CONNECT_DATA=(SID=", sid, ")))", sep = "")
-con <- dbConnect(drv, username = "BL_DM_ISG_CONS",
-                 password = "wdck1876",dbname=connect.string)
+con <- dbConnect(drv, username = "",
+                 password = "",dbname=connect.string)
 
 #--- data ------------------------------------------------
 res  <- dbSendQuery(con, sql_string)
