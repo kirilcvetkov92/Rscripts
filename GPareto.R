@@ -26,3 +26,13 @@ myobj <- function (x)
 }
 
 res <- easyGParetoptim(fn = myobj, budget = 50, lower = rep(0, 4),upper = rep(1, 4))
+
+library(caret)
+data("iris")
+control <- trainControl(method="cv", number = 5, classProbs = TRUE, summaryFunction = mnLogLoss)
+set.seed(7)
+fit <- train(Species~. ,data = iris, method = "rf", metric="logLoss", trControl = control)
+
+print(fit)
+
+
