@@ -51,6 +51,9 @@ pdi_data <- na.omit(pdi)
 pdi_data[,c("pdi","idv","mas","uai","ltowvs","ivr")] <- as.numeric(as.character(unlist(pdi_data[,c("pdi","idv","mas","uai","ltowvs","ivr")])))
 
 
+pdi.pca <- prcomp(pdi_data[,3:8],center = TRUE, scale = FALSE)
+pdi_cities <- pdi.pca$x[,1]
+names(pdi_cities) <- pdi_data$country
 
 isoMDS(dist(as.matrix((pdi_data[,3:8]))))
 
@@ -81,6 +84,7 @@ library(geosphere)
 library(maps)
 library(reshape)  
 library(data.table)
+library(MASS)
 # Load world cities data and keep only 300 cities, which willgive us 90,000 pairs
 data(world.cities)
 world.cities <- subset(world.cities, capital == 1)
@@ -99,4 +103,15 @@ d <- as.dist(dfr[, -1])
 
 #attr(d, "Labels") <- dt$name
 bla <- isoMDS(d,k=1)
-blu <- bla$points[,1]
+blu <- (bla$points[,1])
+bla <- cmdscale(d,k=1)
+blu <- bla[,1]
+
+library(vegan)
+
+bla <- metaMDS(d)
+names(blu) <- gsub("dist_km.","",names(blu))
+blu[names(blu) == "Bern"]
+blu[blu < -1400 & blu > -1600]
+
+
