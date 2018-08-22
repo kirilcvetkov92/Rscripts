@@ -35,7 +35,7 @@ modellist <- data.frame(model=character(),
                         Kappa=numeric(),
                         stringsAsFactors = FALSE)
 #algos <- list("lm","rpart","knn")
-algos <- list("glm","rpart","rf","knn")
+algos <- list("glm","nb","svmLinear","rpart","rf","knn")
 # linear model, boosted lin mod, decision tree, kNN
 i<-1
 #windows(width = 20, height = 16)
