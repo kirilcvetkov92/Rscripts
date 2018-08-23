@@ -1,12 +1,12 @@
-rm(list = ls())
+#rm(list = ls())
 library(foreach)
 library(doParallel)
 # clean_data from generate sample from distribution
 #source("Rscripts\\COST\\generate_distribution.R")
 
-#clean_data <- read.csv("Rscripts\\COST\\clean_data.csv") 
+clean_data <- read.csv("COST\\clean_data.csv") 
 #
-clean_data <- read.csv("clean_data.csv")
+#clean_data <- read.csv("clean_data.csv")
 clean_data$X <- NULL
 feature_names <- names(clean_data)
 iter <- nrow(clean_data)
@@ -51,8 +51,8 @@ cmodellist <- array(0,dim=c(length(algos),3,1))
 noisy_list <- c(0,10,20,30,40,50)
 pkg <- c("caret")
 
-#cl <- makeCluster(4)
-#registerDoParallel(cl)
+cl <- makeCluster(4)
+registerDoParallel(cl)
 
 result <- foreach(j = 1:length(noisy_list), .combine = rbind ,.packages = pkg) %do% {
 #for (j in 1:length(noisy_list)){
@@ -88,7 +88,7 @@ result <- foreach(j = 1:length(noisy_list), .combine = rbind ,.packages = pkg) %
   return(data.frame(k = noisy_list[j], algo = algos, kappa = kappa, accuracy = accuracy))
   #print(data.frame(k = j, algo = algos, kappa = kappa, accuracy = accuracy))
 }
-#stopCluster(cl)
+stopCluster(cl)
 
 write.csv(result,"result.csv")
 
