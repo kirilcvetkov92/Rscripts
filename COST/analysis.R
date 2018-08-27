@@ -1,4 +1,4 @@
-#rm(list = ls())
+rm(list = ls())
 library(foreach)
 library(doParallel)
 # clean_data from generate sample from distribution
@@ -55,9 +55,9 @@ pkg <- c("caret","randomForest","fastAdaboost","xgboost")
 cl <- makeCluster(8)
 registerDoParallel(cl)
 
-result <- foreach(j = 1:length(noisy_list), .combine = rbind ,.packages = pkg) %dopar% {
-#for (j in 1:length(noisy_list)){
-  labelnoise <- noisy_list[j]
+result <- foreach(labelnoise = noisy_list, .combine = rbind ,.packages = pkg) %do% {
+  #labelnoise <- 0
+  print(labelnoise)
   noisy_data <- clean_data
   resample <- sample.int(iter, iter/100*labelnoise)
   mylabels <- unique(clean_data$Service.Model)
@@ -68,9 +68,9 @@ result <- foreach(j = 1:length(noisy_list), .combine = rbind ,.packages = pkg) %
   data <- noisy_data
   kappa <- vector()
   accuracy <- vector()
-  foreach(i = 1:length(algos)) %:% {
+  foreach(i = 1:length(algos), .combine = rbind,.packages = pkg) %dopar% {
       algo <- algos[i]
-
+      print(algo)
   
       #datachr <- deparse(substitute(datalist[[j]]))
       model <- train(Service.Model ~ . ,
@@ -86,7 +86,7 @@ result <- foreach(j = 1:length(noisy_list), .combine = rbind ,.packages = pkg) %
       #print(datavec)
     
   }
-  return(data.frame(k = noisy_list[j], algo = algos, kappa = kappa, accuracy = accuracy))
+  return(data.frame(k = labelnoise, algo = algos, kappa = kappa, accuracy = accuracy))
   #print(data.frame(k = j, algo = algos, kappa = kappa, accuracy = accuracy))
 }
 stopCluster(cl)
