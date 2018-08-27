@@ -4,9 +4,9 @@ library(doParallel)
 # clean_data from generate sample from distribution
 #source("Rscripts\\COST\\generate_distribution.R")
 
-#clean_data <- read.csv("COST\\clean_data.csv") 
+clean_data <- read.csv("COST\\clean_data.csv") 
 #
-clean_data <- read.csv("clean_data.csv")
+#clean_data <- read.csv("clean_data.csv")
 clean_data$X <- NULL
 feature_names <- names(clean_data)
 iter <- nrow(clean_data)
@@ -61,14 +61,14 @@ result <- foreach(j = 1:length(noisy_list), .combine = rbind ,.packages = pkg) %
   noisy_data <- clean_data
   resample <- sample.int(iter, iter/100*labelnoise)
   mylabels <- unique(clean_data$Service.Model)
-  foreach(k in resample){
+  for(k in resample){
     myset <- noisy_data[k,]
     noisy_data[k,1] <- sample(mylabels[!(myset$Service.Model == mylabels)],1)
   }
   data <- noisy_data
   kappa <- vector()
   accuracy <- vector()
-  for (i in 1:length(algos)) {
+  foreach(i = 1:length(algos)) %:% {
       algo <- algos[i]
 
   
