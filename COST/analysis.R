@@ -4,9 +4,9 @@ library(doParallel)
 # clean_data from generate sample from distribution
 #source("Rscripts\\COST\\generate_distribution.R")
 
-clean_data <- read.csv("COST\\clean_data.csv") 
+#clean_data <- read.csv("COST\\clean_data.csv") 
 #
-#clean_data <- read.csv("clean_data.csv")
+clean_data <- read.csv("clean_data.csv")
 clean_data$X <- NULL
 feature_names <- names(clean_data)
 iter <- nrow(clean_data)
@@ -19,7 +19,6 @@ library(rpart)
 #cldata <- out$cleanData
 #print(out)
 #identical(out$cleanData, noisy_data[setdiff(1:nrow(noisy_data),out$remIdx),])
-library(randomForest)
 library(mlbench)
 library(caret)
 #trainmodel <- function(algo,data,metric,control,tunelen){
@@ -38,29 +37,31 @@ library(caret)
 #   return(me)
 # }
 control <- trainControl(method="repeatedcv",
-                        number=10,
-                        repeats=3,
+                        number=2,
+                        repeats=2,
                         search = "random")
-tunelen <- 10
+tunelen <- 1
 
 #algos <- list("glm","nb","svmLinear","rpart2","rf","knn")
-algos <- c("rpart2","nb","rf","xgboost")
+algos <- c("rpart2","nb","rf","adaboost","xgbLinear")
+#algos <- c("rpart2","nb","rf")
 metric <- "Kappa"
 cmodellist <- array(0,dim=c(length(algos),3,1))
 
 noisy_list <- c(0,10,20,30,40,50)
-pkg <- c("caret")
+noisy_list <- c(0,10)
+pkg <- c("caret","randomForest","fastAdaboost","xgboost")
 
-cl <- makeCluster(4)
+cl <- makeCluster(8)
 registerDoParallel(cl)
 
-result <- foreach(j = 1:length(noisy_list), .combine = rbind ,.packages = pkg) %do% {
+result <- foreach(j = 1:length(noisy_list), .combine = rbind ,.packages = pkg) %dopar% {
 #for (j in 1:length(noisy_list)){
   labelnoise <- noisy_list[j]
   noisy_data <- clean_data
   resample <- sample.int(iter, iter/100*labelnoise)
   mylabels <- unique(clean_data$Service.Model)
-  for (k in resample){
+  foreach(k in resample){
     myset <- noisy_data[k,]
     noisy_data[k,1] <- sample(mylabels[!(myset$Service.Model == mylabels)],1)
   }
