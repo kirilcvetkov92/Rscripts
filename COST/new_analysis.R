@@ -12,9 +12,8 @@ library(data.table)
 clean_data <- read.csv("COST\\clean_data.csv") 
 #clean_data <- read.csv("clean_data.csv")
 clean_data$X <- NULL
-partition <- createDataPartition(clean_data$Service.Model, p = 0.001, list = FALSE)
+partition <- createDataPartition(clean_data$Service.Model, p = 0.1, list = FALSE)
 clean_data <- clean_data[partition,]
-#
 
 feature_names <- names(clean_data)
 iter <- nrow(clean_data)
@@ -36,9 +35,7 @@ iter <- nrow(clean_data)
 # search = "random",
 # verboseIter = TRUE)
 
-tunelen <- 3
-
-m <- c("rpart2","nb","rf")
+m <- c("rpart2","nb","rf","gbm","AdaBoost.M1","lvq","Mlda","xgbLinear")
 
 
 # show which libraries were loaded  
@@ -50,8 +47,8 @@ Y = clean_data[,1]
 
 # register parallel front-end
 library(doParallel); 
-cl <- makeCluster(detectCores()); 
-#cl <- makeCluster(4); 
+#cl <- makeCluster(detectCores()); 
+cl <- makeCluster(2); 
 registerDoParallel(cl)
 
 # this setup actually calls the caret::train function, in order to provide
@@ -60,11 +57,18 @@ trainCall <- function(i)
 {
   cat("----------------------------------------------------","\n");
   set.seed(123); cat(i," <- loaded\n");
-  control <- trainControl(method="boot632",
-                          allowParallel = FALSE,
-                          verboseIter = TRUE)
+  tunelen <- 3
+  # control <- trainControl(method="boot632",
+  #                         allowParallel = FALSE,
+  #                         verboseIter = TRUE)
+  control <- trainControl(method="repeatedcv",
+                         number=10,
+                         repeats=3,
+                         allowParallel = FALSE,
+                         search = "random",
+                         verboseIter = TRUE)
   return(tryCatch(
-    t2 <- train(y=Y, x=X, (i), trControl = control),
+    t2 <- train(y=Y, x=X, (i), trControl = control, tuneLength = tunelen),
     error=function(e) NULL))
 }
 
@@ -76,22 +80,6 @@ t2 <- foreach(model = m, .combine = "list", .packages = pkg) %dopar% {trainCall(
 
 #remove NULL values, we only allow succesful methods, provenance is deleted.
 t2 <- t2[!sapply(t2, is.null)]
-
-# this setup extracts the results with minimal error handling 
-# TrainKappa can be sometimes zero, but Accuracy SD can be still available
-# see Kappa value http://epiville.ccnmtl.columbia.edu/popup/how_to_calculate_kappa.html
-printCall <- function(i) 
-{
-  return(tryCatch(
-    {
-      cat(sprintf("%-22s",(m[i])))
-      cat(round(getTrainPerf(t2[[i]])$TrainAccuracy,4),"\t")
-      cat(round(getTrainPerf(t2[[i]])$TrainKappa,4),"\t")
-      cat(t2[[i]]$times$everything[3],"\n")},
-    error=function(e) NULL))
-}
-
-r2 <- lapply(1:length(t2), printCall)
 
 # this setup extracts the results with minimal error handling 
 # TrainKappa can be sometimes zero, but Accuracy SD can be still available
@@ -131,34 +119,34 @@ for (i in 1:length(t2)) {
 
 # coerce to data frame
 df1 <- data.frame(x1,x2,x3,x4,x5, stringsAsFactors=FALSE)
-
+names(df1) <- c("algorithm","Accuracy","Kappa","Time","Description")
 # print all results to R-GUI
-df1
+print(df1)
 
 # plot models, just as example
 # ggplot(t2[[1]])
 # ggplot(t2[[1]])
 
 # call web output with correct column names
-datatable(df1,  options = list(
-  columnDefs = list(list(className = 'dt-left', targets = c(0,1,2,3,4,5))),
-  pageLength = MAX,
-  order = list(list(2, 'desc'))),
-  colnames = c('Num', 'Name', 'Accuracy', 'Kappa', 'time [s]', 'Model name'),
-  caption = paste('Classification results from caret models',Sys.time()),
-  class = 'cell-border stripe')  %>% 	       
-  formatRound('x2', 3) %>%  
-  formatRound('x3', 3) %>%
-  formatRound('x4', 3) %>%
-  formatStyle(2,
-              background = styleColorBar(x2, 'steelblue'),
-              backgroundSize = '100% 90%',
-              backgroundRepeat = 'no-repeat',
-              backgroundPosition = 'center'
-  )
+# datatable(df1,  options = list(
+#   columnDefs = list(list(className = 'dt-left', targets = c(0,1,2,3,4,5))),
+#   pageLength = MAX,
+#   order = list(list(2, 'desc'))),
+#   colnames = c('Num', 'Name', 'Accuracy', 'Kappa', 'time [s]', 'Model name'),
+#   caption = paste('Classification results from caret models',Sys.time()),
+#   class = 'cell-border stripe')  %>% 	       
+#   formatRound('x2', 3) %>%  
+#   formatRound('x3', 3) %>%
+#   formatRound('x4', 3) %>%
+#   formatStyle(2,
+#               background = styleColorBar(x2, 'steelblue'),
+#               backgroundSize = '100% 90%',
+#               backgroundRepeat = 'no-repeat',
+#               backgroundPosition = 'center'
+#   )
 
 # print confusion matrix example
-caret::confusionMatrix(t2[[1]])
+#caret::confusionMatrix(t2[[1]])
 
 
 ### END
