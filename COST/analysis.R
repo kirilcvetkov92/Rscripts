@@ -1,6 +1,7 @@
 rm(list = ls())
 library(foreach)
 library(doParallel)
+library(iterators)
 # clean_data from generate sample from distribution
 #source("Rscripts\\COST\\generate_distribution.R")
 
@@ -38,55 +39,62 @@ library(caret)
 # }
 control <- trainControl(method="repeatedcv",
                         number=2,
-                        repeats=2,
-                        search = "random")
+                        repeats=1,
+                        #search = "random",
+                        verboseIter = TRUE)
 tunelen <- 1
 
 #algos <- list("glm","nb","svmLinear","rpart2","rf","knn")
 #algos <- c("rpart2","nb","rf","adaboost","xgbLinear")
-algos <- c("rpart2","nb")
-metric <- "Kappa"
+# get all model names for classification
+m <- unique(modelLookup()[modelLookup()$forClass,c(1)])
+length(m); m;
+algos <- c("AdaBag")
+algos <- m
+#metric <- "Kappa"
 cmodellist <- array(0,dim=c(length(algos),3,1))
 
 noisy_list <- c(0,10,20,30,40,50)
-noisy_list <- c(0,10)
+noisy_list <- c(0,1)
 pkg <- c("caret","randomForest","fastAdaboost","xgboost")
 
 cl <- makeCluster(8)
 registerDoParallel(cl)
-
-result <- foreach(labelnoise = noisy_list, .combine = rbind ,.packages = pkg) %do% {
-  #labelnoise <- 0
-  print(labelnoise)
+datalist <- foreach(i = 1:length(noisy_list), .combine = "list") %dopar% {
+  labelnoise <- noisy_list[i]
   noisy_data <- clean_data
   resample <- sample.int(iter, iter/100*labelnoise)
   mylabels <- unique(clean_data$Service.Model)
   for(k in resample){
     myset <- noisy_data[k,]
     noisy_data[k,1] <- sample(mylabels[!(myset$Service.Model == mylabels)],1)
-  }
-  data <- noisy_data
-  kappa <- vector()
-  accuracy <- vector()
+}
+return(noisy_data)
+}
+result <- foreach(data = datalist,j=icount(), .combine = rbind) %:% 
   foreach(algo = algos, .combine = cbind,.packages = pkg) %dopar% {
-      #algo <- algos[i]
-      #print(algo)
-  
-      #datachr <- deparse(substitute(datalist[[j]]))
+      data <- datalist[[1]]
+      algo <- algos[[1]]
+      #print(data)
+      set.seed(1234)
+      start.time <- sys.time()
       model <- train(Service.Model ~ . ,
                                       data= data,
                                       method=algo, 
-                                      metric=metric,
+                                      #metric=metric,
                                       trControl=control,
-                                      tuneLength = tunelen)
+                                      #tuneLength = tunelen,
+                                      verbose= FALSE)
+      end.time <- sys.time()
+      time <- end.time - start.time
       #modellist[j] <- model$finalModel 
       kappa <- max(model$results$Kappa)
       accuracy <- max(model$results$Accuracy)
       #datavec[j] <- datachr
       #print(datavec)
-    
-  }
-  return(data.frame(k = labelnoise, algo = algos, kappa = kappa, accuracy = accuracy))
+      #return(accuracy)
+  
+  return(data.frame(noise=noisy_list[j], algo = algo, time ,kappa = kappa, accuracy = accuracy))
   #print(data.frame(k = j, algo = algos, kappa = kappa, accuracy = accuracy))
 }
 stopCluster(cl)
