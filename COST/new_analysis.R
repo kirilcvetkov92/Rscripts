@@ -63,7 +63,8 @@ trainCall <- function(i)
   #                         allowParallel = FALSE,
   #                         verboseIter = TRUE)
   control <- trainControl(method="adaptive_cv",
-                         number=10, returnResamp = "final",
+                         number=10, repeats = 3,
+                         returnResamp = "final",
                          adaptive = list(min = 5,alpha = .05,method="gls",complete = TRUE),
                          allowParallel = TRUE,
                          verboseIter = TRUE)
@@ -122,7 +123,7 @@ df1 <- data.frame(x1,x2,x3,x4,x5, stringsAsFactors=FALSE)
 names(df1) <- c("algorithm","Accuracy","Kappa","Time","Description")
 # print all results to R-GUI
 print(df1)
-
+write.csv(df1,"result_new.csv")
 # plot models, just as example
 # ggplot(t2[[1]])
 # ggplot(t2[[1]])
