@@ -2,18 +2,23 @@ rm(list = ls())
 library(foreach)
 library(doParallel)
 library(iterators)
+library(mlbench)
+library(caret)
+library(rpart)
 # clean_data from generate sample from distribution
 #source("Rscripts\\COST\\generate_distribution.R")
 
 clean_data <- read.csv("COST\\clean_data.csv") 
-clean_data <- clean_data[1:100,]
-#
 #clean_data <- read.csv("clean_data.csv")
 clean_data$X <- NULL
+partition <- createDataPartition(clean_data$Service.Model, p = 0.01, list = FALSE)
+clean_data <- clean_data[partition,]
+#
+
 feature_names <- names(clean_data)
 iter <- nrow(clean_data)
 
-library(rpart)
+
 #library(rattle)
 #library(NoiseFiltersR)
 #noisy_data$Service.Model <- as.factor(noisy_data$Service.Model)
@@ -21,33 +26,38 @@ library(rpart)
 #cldata <- out$cleanData
 #print(out)
 #identical(out$cleanData, noisy_data[setdiff(1:nrow(noisy_data),out$remIdx),])
-library(mlbench)
-library(caret)
 
-control <- trainControl(method="repeatedcv",
-                        number=2,
-                        repeats=1,
+
+#control <- trainControl(method="repeatedcv",
+#                        number=2,
+# repeats=1,
+# allowParallel = FALSE,
+# search = "random",
+# verboseIter = TRUE)
+control <- trainControl(method="boot632",
                         allowParallel = FALSE,
-                        search = "random",
                         verboseIter = TRUE)
 tunelen <- 10
 
 #algos <- list("glm","nb","svmLinear","rpart2","rf","knn")
 #algos <- c("rpart2","nb","rf","adaboost","xgbLinear")
 # get all model names for classification
-m <- unique(modelLookup()[modelLookup()$forClass,c(1)])
-all_model <-getModelInfo()
-bli <- lapply(all_model,"[[","tags")
-all_model_tags <- lapply(all_model_tags, function(x) "Two Class Only" %in% x)
-not_two_class_models <- blu[!unlist(all_model_tags)]
-algos <- m[m %in% names(not_two_class_models)]
-algos <- algos[1:3]
-#algos <- c("xgbTree","xgbLinear","rf")
+
+# m <- unique(modelLookup()[modelLookup()$forClass,c(1)])
+# all_model <-getModelInfo()
+# tags <- lapply(all_model,"[[","tags")
+# all_model_tags <- lapply(tags, function(x) "Two Class Only" %in% x)
+# not_two_class_models <- all_model_tags[!unlist(all_model_tags)]
+
+#algos <- m[m %in% names(not_two_class_models)]
+#algos <- algos[1:3]
+
+algos <- c("rpart2","nb","xgbTree","xgbLinear","rf")
 #algos <- c("rpart2","rpart")
 #metric <- "Kappa"
 cmodellist <- array(0,dim=c(length(algos),3,1))
-
-noisy_list <- c(0,10,20,30,40,50)
+print(algos)
+#noisy_list <- c(0,10,20,30,40,50)
 noisy_list <- c(0,10)
 pkg <- c("caret")
 
@@ -67,6 +77,7 @@ return(noisy_data)
 
 #result <- foreach(data = datalist,j=icount(), .combine = rbind) %:% 
  data <- datalist[[1]] 
+ j <- 1
 result <-  foreach(algo = algos, .combine = rbind,.packages = pkg) %dopar% {
       #data <- datalist[[1]]
       #algo <- algos[[1]]

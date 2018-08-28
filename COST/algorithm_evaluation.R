@@ -45,7 +45,8 @@ trainCall <- function(i)
   cat("----------------------------------------------------","\n");
   set.seed(123); cat(i," <- loaded\n");
   return(tryCatch(
-    t2 <- train(y=Y, x=X, (i), trControl = trainControl(method = "boot632")),
+   # t2 <- train(y=Y, x=X, (i), trControl = trainControl(method = "boot632")),
+    t2 <- train(y=Y, x=X, (i), trControl = trainControl(method = "none")),
     error=function(e) NULL))
 }
 
