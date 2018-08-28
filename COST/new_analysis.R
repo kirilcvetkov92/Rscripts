@@ -5,6 +5,7 @@ library(iterators)
 library(mlbench)
 library(caret)
 library(rpart)
+library(data.table)
 # clean_data from generate sample from distribution
 #source("Rscripts\\COST\\generate_distribution.R")
 
@@ -34,42 +35,11 @@ iter <- nrow(clean_data)
 # allowParallel = FALSE,
 # search = "random",
 # verboseIter = TRUE)
-control <- trainControl(method="boot632",
-                        allowParallel = FALSE,
-                        verboseIter = TRUE)
+
 tunelen <- 3
 
-# get all model names for multi-class classification
+m <- c("rpart2","nb","rf")
 
-# m <- unique(modelLookup()[modelLookup()$forClass,c(1)])
-# all_model <-getModelInfo()
-# tags <- lapply(all_model,"[[","tags")
-# all_model_tags <- lapply(tags, function(x) "Two Class Only" %in% x)
-# not_two_class_models <- all_model_tags[!unlist(all_model_tags)]
-
-#algos <- m[m %in% names(not_two_class_models)]
-#algos <- algos[1:3]
-
-m <- c("rpart2","nb","xgbLinear","rf")
-#algos <- c("rpart2","rpart")
-#metric <- "Kappa"
-#cmodellist <- array(0,dim=c(length(algos),3,1))
-#print(algos)
-#noisy_list <- c(0,10,20,30,40,50)
-noisy_list <- c(0,10)
-pkg <- c("caret")
-
-datalist <- foreach(i = 1:length(noisy_list), .combine = "list") %do% {
-  labelnoise <- noisy_list[i]
-  noisy_data <- clean_data
-  resample <- sample.int(iter, iter/100*labelnoise)
-  mylabels <- unique(clean_data$Service.Model)
-  for(k in resample){
-    myset <- noisy_data[k,]
-    noisy_data[k,1] <- sample(mylabels[!(myset$Service.Model == mylabels)],1)
-  }
-  return(noisy_data)
-}
 
 # show which libraries were loaded  
 sessionInfo()
@@ -80,8 +50,8 @@ Y = clean_data[,1]
 
 # register parallel front-end
 library(doParallel); 
-#cl <- makeCluster(detectCores()); 
-cl <- makeCluster(1); 
+cl <- makeCluster(detectCores()); 
+#cl <- makeCluster(4); 
 registerDoParallel(cl)
 
 # this setup actually calls the caret::train function, in order to provide
@@ -90,13 +60,19 @@ trainCall <- function(i)
 {
   cat("----------------------------------------------------","\n");
   set.seed(123); cat(i," <- loaded\n");
+  control <- trainControl(method="boot632",
+                          allowParallel = FALSE,
+                          verboseIter = TRUE)
   return(tryCatch(
-    t2 <- train(y=Y, x=X, (i), trControl = trainControl(method = "boot632")),
+    t2 <- train(y=Y, x=X, (i), trControl = control),
     error=function(e) NULL))
 }
 
+
+
 # use lapply/loop to run everything, required for try/catch error function to work
-t2 <- lapply(m, trainCall)
+pkg <- c("caret")
+t2 <- foreach(model = m, .combine = "list", .packages = pkg) %dopar% {trainCall(model)}
 
 #remove NULL values, we only allow succesful methods, provenance is deleted.
 t2 <- t2[!sapply(t2, is.null)]
