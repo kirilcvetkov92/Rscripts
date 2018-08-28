@@ -25,6 +25,9 @@ removeModels <- c("AdaBoost.M1","pda2","dwdRadial","rbf","dwdLinear", "dwdPoly",
 #remove all slow and failed models from model list
 m <- m[!m %in% removeModels]
 
+#only this models
+m <- c("rpart2","nb","adaboost","xgbLinear","rf")
+
 # pre-load all packages (does not really work due to other dependencies)
 suppressPackageStartupMessages(ll <-lapply(m, require, character.only = TRUE))
 

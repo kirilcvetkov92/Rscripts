@@ -11,7 +11,7 @@ library(rpart)
 clean_data <- read.csv("COST\\clean_data.csv") 
 #clean_data <- read.csv("clean_data.csv")
 clean_data$X <- NULL
-partition <- createDataPartition(clean_data$Service.Model, p = 0.01, list = FALSE)
+partition <- createDataPartition(clean_data$Service.Model, p = 0.001, list = FALSE)
 clean_data <- clean_data[partition,]
 #
 
@@ -37,11 +37,9 @@ iter <- nrow(clean_data)
 control <- trainControl(method="boot632",
                         allowParallel = FALSE,
                         verboseIter = TRUE)
-tunelen <- 10
+tunelen <- 3
 
-#algos <- list("glm","nb","svmLinear","rpart2","rf","knn")
-#algos <- c("rpart2","nb","rf","adaboost","xgbLinear")
-# get all model names for classification
+# get all model names for multi-class classification
 
 # m <- unique(modelLookup()[modelLookup()$forClass,c(1)])
 # all_model <-getModelInfo()
@@ -52,7 +50,7 @@ tunelen <- 10
 #algos <- m[m %in% names(not_two_class_models)]
 #algos <- algos[1:3]
 
-algos <- c("rpart2","nb","xgbTree","xgbLinear","rf")
+algos <- c("rpart2","nb","adaboost","xgbLinear","rf")
 #algos <- c("rpart2","rpart")
 #metric <- "Kappa"
 cmodellist <- array(0,dim=c(length(algos),3,1))
