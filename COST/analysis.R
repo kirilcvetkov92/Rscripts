@@ -40,6 +40,7 @@ library(caret)
 control <- trainControl(method="repeatedcv",
                         number=2,
                         repeats=1,
+                        allowParallel = FALSE,
                         #search = "random",
                         verboseIter = TRUE)
 tunelen <- 1
@@ -49,8 +50,7 @@ tunelen <- 1
 # get all model names for classification
 m <- unique(modelLookup()[modelLookup()$forClass,c(1)])
 length(m); m;
-algos <- c("AdaBag")
-algos <- m
+algos <- c("xgbTree","xgbLinear","rf")
 #metric <- "Kappa"
 cmodellist <- array(0,dim=c(length(algos),3,1))
 
@@ -73,8 +73,8 @@ return(noisy_data)
 }
 result <- foreach(data = datalist,j=icount(), .combine = rbind) %:% 
   foreach(algo = algos, .combine = cbind,.packages = pkg) %dopar% {
-      data <- datalist[[1]]
-      algo <- algos[[1]]
+      #data <- datalist[[1]]
+      #algo <- algos[[1]]
       #print(data)
       set.seed(1234)
       start.time <- sys.time()
