@@ -41,13 +41,13 @@ tunelen <- 3
 
 # get all model names for multi-class classification
 
-# m <- unique(modelLookup()[modelLookup()$forClass,c(1)])
-# all_model <-getModelInfo()
-# tags <- lapply(all_model,"[[","tags")
-# all_model_tags <- lapply(tags, function(x) "Two Class Only" %in% x)
-# not_two_class_models <- all_model_tags[!unlist(all_model_tags)]
+m <- unique(modelLookup()[modelLookup()$forClass,c(1)])
+all_model <-getModelInfo()
+tags <- lapply(all_model,"[[","tags")
+all_model_tags <- lapply(tags, function(x) "Two Class Only" %in% x)
+not_two_class_models <- all_model_tags[!unlist(all_model_tags)]
 
-#algos <- m[m %in% names(not_two_class_models)]
+algos <- m[m %in% names(not_two_class_models)]
 #algos <- algos[1:3]
 
 algos <- c("rpart2","nb","adaboost","xgbLinear","rf")
@@ -56,7 +56,7 @@ algos <- c("rpart2","nb","adaboost","xgbLinear","rf")
 cmodellist <- array(0,dim=c(length(algos),3,1))
 print(algos)
 #noisy_list <- c(0,10,20,30,40,50)
-noisy_list <- c(0,10)
+noisy_list <- c(50)
 pkg <- c("caret")
 
 cl <- makeCluster(detectCores())

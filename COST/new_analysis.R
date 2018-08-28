@@ -9,7 +9,7 @@ library(data.table)
 # clean_data from generate sample from distribution
 #source("Rscripts\\COST\\generate_distribution.R")
 
-clean_data <- read.csv("COST\\clean_data.csv") 
+clean_data <- read.csv("COST\\data_00.csv") 
 #clean_data <- read.csv("clean_data.csv")
 clean_data$X <- NULL
 partition <- createDataPartition(clean_data$Service.Model, p = 0.1, list = FALSE)
@@ -36,6 +36,7 @@ iter <- nrow(clean_data)
 # verboseIter = TRUE)
 
 m <- c("rpart2","nb","rf","gbm","AdaBoost.M1","lvq","Mlda","xgbLinear")
+#m <- c("rpart2","nb")
 
 
 # show which libraries were loaded  
@@ -47,8 +48,8 @@ Y = clean_data[,1]
 
 # register parallel front-end
 library(doParallel); 
-#cl <- makeCluster(detectCores()); 
-cl <- makeCluster(2); 
+cl <- makeCluster(detectCores()); 
+#cl <- makeCluster(2); 
 registerDoParallel(cl)
 
 # this setup actually calls the caret::train function, in order to provide
@@ -57,18 +58,17 @@ trainCall <- function(i)
 {
   cat("----------------------------------------------------","\n");
   set.seed(123); cat(i," <- loaded\n");
-  tunelen <- 3
+  #tunelen <- 3
   # control <- trainControl(method="boot632",
   #                         allowParallel = FALSE,
   #                         verboseIter = TRUE)
-  control <- trainControl(method="repeatedcv",
-                         number=10,
-                         repeats=3,
-                         allowParallel = FALSE,
-                         search = "random",
+  control <- trainControl(method="adaptive_cv",
+                         number=10, returnResamp = "final",
+                         adaptive = list(min = 5,alpha = .05,method="gls",complete = TRUE),
+                         allowParallel = TRUE,
                          verboseIter = TRUE)
   return(tryCatch(
-    t2 <- train(y=Y, x=X, (i), trControl = control, tuneLength = tunelen),
+    t2 <- train(y=Y, x=X, (i), trControl = control),
     error=function(e) NULL))
 }
 
@@ -76,7 +76,7 @@ trainCall <- function(i)
 
 # use lapply/loop to run everything, required for try/catch error function to work
 pkg <- c("caret")
-t2 <- foreach(model = m, .combine = "list", .packages = pkg) %dopar% {trainCall(model)}
+t2 <- foreach(model = m, .combine = "list") %do% {trainCall(model)}
 
 #remove NULL values, we only allow succesful methods, provenance is deleted.
 t2 <- t2[!sapply(t2, is.null)]
