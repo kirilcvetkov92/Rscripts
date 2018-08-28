@@ -41,24 +41,25 @@ control <- trainControl(method="repeatedcv",
                         number=2,
                         repeats=1,
                         allowParallel = FALSE,
-                        #search = "random",
+                        search = "random",
                         verboseIter = TRUE)
-tunelen <- 1
+tunelen <- 3
 
 #algos <- list("glm","nb","svmLinear","rpart2","rf","knn")
 #algos <- c("rpart2","nb","rf","adaboost","xgbLinear")
 # get all model names for classification
 m <- unique(modelLookup()[modelLookup()$forClass,c(1)])
-length(m); m;
+
 algos <- c("xgbTree","xgbLinear","rf")
+#algos <- c("rpart2","nb")
 #metric <- "Kappa"
 cmodellist <- array(0,dim=c(length(algos),3,1))
 
 noisy_list <- c(0,10,20,30,40,50)
-noisy_list <- c(0,1)
-pkg <- c("caret","randomForest","fastAdaboost","xgboost")
+noisy_list <- c(0,10)
+pkg <- c("caret")
 
-cl <- makeCluster(8)
+cl <- makeCluster(detectCores())
 registerDoParallel(cl)
 datalist <- foreach(i = 1:length(noisy_list), .combine = "list") %dopar% {
   labelnoise <- noisy_list[i]
@@ -71,21 +72,21 @@ datalist <- foreach(i = 1:length(noisy_list), .combine = "list") %dopar% {
 }
 return(noisy_data)
 }
+
 result <- foreach(data = datalist,j=icount(), .combine = rbind) %:% 
-  foreach(algo = algos, .combine = cbind,.packages = pkg) %dopar% {
+  foreach(algo = algos, .combine = rbind,.packages = pkg) %dopar% {
       #data <- datalist[[1]]
       #algo <- algos[[1]]
       #print(data)
       set.seed(1234)
-      start.time <- sys.time()
+      start.time <- Sys.time()
       model <- train(Service.Model ~ . ,
                                       data= data,
                                       method=algo, 
                                       #metric=metric,
                                       trControl=control,
-                                      #tuneLength = tunelen,
-                                      verbose= FALSE)
-      end.time <- sys.time()
+                                      tuneLength = tunelen)
+      end.time <- Sys.time()
       time <- end.time - start.time
       #modellist[j] <- model$finalModel 
       kappa <- max(model$results$Kappa)
@@ -94,7 +95,7 @@ result <- foreach(data = datalist,j=icount(), .combine = rbind) %:%
       #print(datavec)
       #return(accuracy)
   
-  return(data.frame(noise=noisy_list[j], algo = algo, time ,kappa = kappa, accuracy = accuracy))
+  return(data.frame(noise=noisy_list[j], algo = algo,time = time ,kappa = kappa, accuracy = accuracy))
   #print(data.frame(k = j, algo = algos, kappa = kappa, accuracy = accuracy))
 }
 stopCluster(cl)
