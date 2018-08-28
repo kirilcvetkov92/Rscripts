@@ -6,6 +6,7 @@ library(iterators)
 #source("Rscripts\\COST\\generate_distribution.R")
 
 clean_data <- read.csv("COST\\clean_data.csv") 
+clean_data <- clean_data[1:100,]
 #
 #clean_data <- read.csv("clean_data.csv")
 clean_data$X <- NULL
@@ -22,36 +23,27 @@ library(rpart)
 #identical(out$cleanData, noisy_data[setdiff(1:nrow(noisy_data),out$remIdx),])
 library(mlbench)
 library(caret)
-#trainmodel <- function(algo,data,metric,control,tunelen){
-#   model <- train(Service.Model ~ . ,
-#                  data=data,
-#                  method=algo, 
-#                  metric=metric,
-#                  trControl=control,
-#                  tuneLength = tunelen)
-#   
-#   return(model)
-# } 
-#multiResultClass <- function(result1=NULL,result2=NULL){
-#   me <- list(result1 = result1,result2 = result2)
-#   class(me) <- append(class(me),"multiResultClass")
-#   return(me)
-# }
+
 control <- trainControl(method="repeatedcv",
                         number=2,
                         repeats=1,
                         allowParallel = FALSE,
                         search = "random",
                         verboseIter = TRUE)
-tunelen <- 3
+tunelen <- 10
 
 #algos <- list("glm","nb","svmLinear","rpart2","rf","knn")
 #algos <- c("rpart2","nb","rf","adaboost","xgbLinear")
 # get all model names for classification
 m <- unique(modelLookup()[modelLookup()$forClass,c(1)])
-
-algos <- c("xgbTree","xgbLinear","rf")
-#algos <- c("rpart2","nb")
+all_model <-getModelInfo()
+bli <- lapply(all_model,"[[","tags")
+all_model_tags <- lapply(all_model_tags, function(x) "Two Class Only" %in% x)
+not_two_class_models <- blu[!unlist(all_model_tags)]
+algos <- m[m %in% names(not_two_class_models)]
+algos <- algos[1:3]
+#algos <- c("xgbTree","xgbLinear","rf")
+#algos <- c("rpart2","rpart")
 #metric <- "Kappa"
 cmodellist <- array(0,dim=c(length(algos),3,1))
 
@@ -73,8 +65,9 @@ datalist <- foreach(i = 1:length(noisy_list), .combine = "list") %dopar% {
 return(noisy_data)
 }
 
-result <- foreach(data = datalist,j=icount(), .combine = rbind) %:% 
-  foreach(algo = algos, .combine = rbind,.packages = pkg) %dopar% {
+#result <- foreach(data = datalist,j=icount(), .combine = rbind) %:% 
+ data <- datalist[[1]] 
+result <-  foreach(algo = algos, .combine = rbind,.packages = pkg) %dopar% {
       #data <- datalist[[1]]
       #algo <- algos[[1]]
       #print(data)
@@ -87,7 +80,7 @@ result <- foreach(data = datalist,j=icount(), .combine = rbind) %:%
                                       trControl=control,
                                       tuneLength = tunelen)
       end.time <- Sys.time()
-      time <- end.time - start.time
+      time <- as.numeric(end.time - start.time,units="secs")
       #modellist[j] <- model$finalModel 
       kappa <- max(model$results$Kappa)
       accuracy <- max(model$results$Accuracy)
