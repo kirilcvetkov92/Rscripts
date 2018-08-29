@@ -19,9 +19,15 @@ clean_data$X <- NULL
 feature_names <- names(clean_data)
 iter <- nrow(clean_data)
 
-m <- c("rpart2","lda","knn","svmRadial","nb","lvq","Mlda")
+#m <- c("rpart2","lda","knn","svmRadial","nb","lvq","Mlda")
 #m <- c("rpart2","nb")
-m <- c("knn")
+m <- unique(modelLookup()[modelLookup()$forClass,c(1)])
+all_model <-getModelInfo()
+tags <- lapply(all_model,"[[","tags")
+all_model_tags <- lapply(tags, function(x) "Two Class Only" %in% x)
+not_two_class_models <- all_model_tags[!unlist(all_model_tags)]
+m <- m[m %in% names(not_two_class_models)]
+
 
 # show which libraries were loaded  
 sessionInfo()
