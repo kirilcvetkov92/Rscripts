@@ -10,9 +10,9 @@ library(data.table)
 #source("Rscripts\\COST\\generate_distribution.R")
 
 clean_data <- read.csv("COST\\data_00.csv") 
-#clean_data <- read.csv("clean_data.csv")
+#clean_data <- read.csv("data_00.csv")
 clean_data$X <- NULL
-partition <- createDataPartition(clean_data$Service.Model, p = 0.1, list = FALSE)
+partition <- createDataPartition(clean_data$Service.Model, p = 0.001, list = FALSE)
 clean_data <- clean_data[partition,]
 
 feature_names <- names(clean_data)
@@ -35,7 +35,7 @@ iter <- nrow(clean_data)
 # search = "random",
 # verboseIter = TRUE)
 
-m <- c("rpart2","nb","rf","gbm","AdaBoost.M1","lvq","Mlda","xgbLinear")
+m <- c("rpart2","lda","knn","svmRadial","nb","lvq","Mlda")
 #m <- c("rpart2","nb")
 
 
@@ -62,22 +62,26 @@ trainCall <- function(i)
   # control <- trainControl(method="boot632",
   #                         allowParallel = FALSE,
   #                         verboseIter = TRUE)
-  control <- trainControl(method="adaptive_cv",
+  control <- trainControl(method="repeatedcv",
                          number=10, repeats = 3,
                          returnResamp = "final",
-                         adaptive = list(min = 5,alpha = .05,method="gls",complete = TRUE),
-                         allowParallel = TRUE,
-                         verboseIter = TRUE)
+                         adaptive = list(min = 5,alpha = .05,
+                                method="gls",complete = TRUE),
+                         #allowParallel = FALSE,
+                         verboseIter = TRUE
+                         )
   return(tryCatch(
-    t2 <- train(y=Y, x=X, (i), trControl = control),
+    t2 <- train(y=Y, x=X, (i), trControl = control, tuneLength = 10),
     error=function(e) NULL))
 }
 
 
 
 # use lapply/loop to run everything, required for try/catch error function to work
-pkg <- c("caret")
-t2 <- foreach(model = m, .combine = "list") %do% {trainCall(model)}
+# pkg <- c("caret")
+# t2 <- foreach(model = m, .combine = "list") %do% {trainCall(model)}
+
+t2 <- lapply(m, trainCall)
 
 #remove NULL values, we only allow succesful methods, provenance is deleted.
 t2 <- t2[!sapply(t2, is.null)]
