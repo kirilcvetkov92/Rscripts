@@ -1,43 +1,27 @@
 rm(list = ls())
-library(foreach)
-library(doParallel)
-library(iterators)
+#library(foreach)
+#library(doParallel)
+#library(iterators)
 library(mlbench)
 library(caret)
 library(rpart)
-library(data.table)
+library(R.utils)
+#library(data.table)
 # clean_data from generate sample from distribution
 #source("Rscripts\\COST\\generate_distribution.R")
 
 clean_data <- read.csv("COST\\data_00.csv") 
 #clean_data <- read.csv("data_00.csv")
 clean_data$X <- NULL
-partition <- createDataPartition(clean_data$Service.Model, p = 0.001, list = FALSE)
-clean_data <- clean_data[partition,]
+#partition <- createDataPartition(clean_data$Service.Model, p = 0.1, list = FALSE)
+#clean_data <- clean_data[partition,]
 
 feature_names <- names(clean_data)
 iter <- nrow(clean_data)
 
-
-#library(rattle)
-#library(NoiseFiltersR)
-#noisy_data$Service.Model <- as.factor(noisy_data$Service.Model)
-#out <- C45robustFilter(Service.Model ~.,data = noisy_data) 
-#cldata <- out$cleanData
-#print(out)
-#identical(out$cleanData, noisy_data[setdiff(1:nrow(noisy_data),out$remIdx),])
-
-
-#control <- trainControl(method="repeatedcv",
-#                        number=2,
-# repeats=1,
-# allowParallel = FALSE,
-# search = "random",
-# verboseIter = TRUE)
-
 m <- c("rpart2","lda","knn","svmRadial","nb","lvq","Mlda")
 #m <- c("rpart2","nb")
-
+m <- c("knn")
 
 # show which libraries were loaded  
 sessionInfo()
@@ -47,15 +31,17 @@ X = clean_data[,-1]
 Y = clean_data[,1]
 
 # register parallel front-end
-library(doParallel); 
-cl <- makeCluster(detectCores()); 
+#library(doParallel); 
+#cl <- makeCluster(detectCores()); 
 #cl <- makeCluster(2); 
-registerDoParallel(cl)
+#registerDoParallel(cl)
 
 # this setup actually calls the caret::train function, in order to provide
 # minimal error handling this type of construct is needed.
 trainCall <- function(i) 
 {
+  tunelen <- 20
+  timeout <- 600
   cat("----------------------------------------------------","\n");
   set.seed(123); cat(i," <- loaded\n");
   #tunelen <- 3
@@ -63,19 +49,20 @@ trainCall <- function(i)
   #                         allowParallel = FALSE,
   #                         verboseIter = TRUE)
   control <- trainControl(method="repeatedcv",
-                         number=10, repeats = 3,
-                         returnResamp = "final",
-                         adaptive = list(min = 5,alpha = .05,
-                                method="gls",complete = TRUE),
-                         #allowParallel = FALSE,
+                         number=10, repeats = 2,
+                         #returnResamp = "final",
+                         #adaptive = list(min = 5,alpha = .05, method="gls",complete = TRUE),
+                         allowParallel = FALSE,
+                         #search = "random",
                          verboseIter = TRUE
                          )
   return(tryCatch(
-    t2 <- train(y=Y, x=X, (i), trControl = control, tuneLength = 10),
+    t2 <- withTimeout(train(y=Y, x=X, (i), trControl = control, tuneLength = tunelen),timeout = timeout, onTimeout = "silent"),
     error=function(e) NULL))
+  #here the time
 }
 
-
+#train(y=Y,x=X, "knn",trControl = control, tuneLength = 10)
 
 # use lapply/loop to run everything, required for try/catch error function to work
 # pkg <- c("caret")
@@ -103,7 +90,7 @@ printCall <- function(i)
 r2 <- lapply(1:length(t2), printCall)
 
 # stop cluster and register sequntial front end
-stopCluster(cl); registerDoSEQ();
+#stopCluster(cl); registerDoSEQ();
 
 # preallocate data types
 i = 1; MAX = length(t2);
