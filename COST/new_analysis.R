@@ -10,8 +10,8 @@ library(R.utils)
 # clean_data from generate sample from distribution
 #source("Rscripts\\COST\\generate_distribution.R")
 
-clean_data <- read.csv("COST\\data_00.csv") 
-#clean_data <- read.csv("data_00.csv")
+#clean_data <- read.csv("COST\\data_00.csv") 
+clean_data <- read.csv("data_00.csv")
 clean_data$X <- NULL
 #partition <- createDataPartition(clean_data$Service.Model, p = 0.1, list = FALSE)
 #clean_data <- clean_data[partition,]
@@ -19,14 +19,14 @@ clean_data$X <- NULL
 feature_names <- names(clean_data)
 iter <- nrow(clean_data)
 
-#m <- c("rpart2","lda","knn","svmRadial","nb","lvq","Mlda")
+m <- c("rpart2","lda","knn","svmRadial","nb","lvq","Mlda","rf","svmLinear","C5.0","xgbDARTR")
 #m <- c("rpart2","nb")
-m <- unique(modelLookup()[modelLookup()$forClass,c(1)])
-all_model <-getModelInfo()
-tags <- lapply(all_model,"[[","tags")
-all_model_tags <- lapply(tags, function(x) "Two Class Only" %in% x)
-not_two_class_models <- all_model_tags[!unlist(all_model_tags)]
-m <- m[m %in% names(not_two_class_models)]
+#m <- unique(modelLookup()[modelLookup()$forClass,c(1)])
+#all_model <-getModelInfo()
+#tags <- lapply(all_model,"[[","tags")
+#all_model_tags <- lapply(tags, function(x) "Two Class Only" %in% x)
+#not_two_class_models <- all_model_tags[!unlist(all_model_tags)]
+#m <- m[m %in% names(not_two_class_models)]
 
 
 # show which libraries were loaded  
@@ -37,17 +37,17 @@ X = clean_data[,-1]
 Y = clean_data[,1]
 
 # register parallel front-end
-#library(doParallel); 
-#cl <- makeCluster(detectCores()); 
+library(doParallel); 
+cl <- makeCluster(detectCores()); 
 #cl <- makeCluster(2); 
-#registerDoParallel(cl)
+registerDoParallel(cl)
 
 # this setup actually calls the caret::train function, in order to provide
 # minimal error handling this type of construct is needed.
 trainCall <- function(i) 
 {
-  tunelen <- 20
-  timeout <- 600
+  tunelen <- 10
+  timeout <- 6000 
   cat("----------------------------------------------------","\n");
   set.seed(123); cat(i," <- loaded\n");
   #tunelen <- 3
@@ -55,10 +55,10 @@ trainCall <- function(i)
   #                         allowParallel = FALSE,
   #                         verboseIter = TRUE)
   control <- trainControl(method="repeatedcv",
-                         number=10, repeats = 2,
+                         number=10, repeats = 4,
                          #returnResamp = "final",
                          #adaptive = list(min = 5,alpha = .05, method="gls",complete = TRUE),
-                         allowParallel = FALSE,
+                         #allowParallel = FALSE,
                          #search = "random",
                          verboseIter = TRUE
                          )
@@ -96,7 +96,7 @@ printCall <- function(i)
 r2 <- lapply(1:length(t2), printCall)
 
 # stop cluster and register sequntial front end
-#stopCluster(cl); registerDoSEQ();
+stopCluster(cl); registerDoSEQ();
 
 # preallocate data types
 i = 1; MAX = length(t2);
