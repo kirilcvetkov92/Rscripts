@@ -11,9 +11,9 @@ library(R.utils)
 #source("Rscripts\\COST\\generate_distribution.R")
 
 noisy_list <- c(0,10,20,30,40,50)
-clean_data <- read.csv("COST\\data_00.csv") 
-
-#clean_data <- read.csv("data_00.csv")
+#noisy_list <- c(0,20)
+clean_data <- read.csv("COST\\clean_data.csv")
+#clean_data <- read.csv("clean_data.csv")
 clean_data$X <- NULL
 partition <- createDataPartition(clean_data$Service.Model, p = 0.1, list = FALSE)
 clean_data <- clean_data[partition,]
@@ -46,8 +46,9 @@ all_model_tags <- lapply(tags, function(x) "Two Class Only" %in% x)
 not_two_class_models <- all_model_tags[!unlist(all_model_tags)]
 m <- m[m %in% names(not_two_class_models)]
 print(m)
-m <- c("glmnet","gam","rpart2","C5.0Tree","rf","lda","knn","svmLinear","svmRadial","nb","lvq","Mlda","xgbDARTR")
-m <- c("gam","C5.0Tree","rpart2")
+m <- c("glmnet","gam","C5.0Rules","rpart2","C5.0Tree","rf","lda","knn","svmLinear","svmRadial","nb","lvq","Mlda","xgbDARTR")
+#m <- c("xgbLinear")
+#m <- c("C5.0Rules")
 
 # show which libraries were loaded  
 sessionInfo()
@@ -66,16 +67,9 @@ trainCall <- function(i)
   timeout <- 3600 
   cat("----------------------------------------------------","\n");
   set.seed(123); cat(i," <- loaded\n");
-  #tunelen <- 3
-  # control <- trainControl(method="boot632",
-  #                         allowParallel = FALSE,
-  #                         verboseIter = TRUE)
+
   control <- trainControl(method="repeatedcv",
-                         number=10, repeats = 4,
-                         #returnResamp = "final",
-                         #adaptive = list(min = 5,alpha = .05, method="gls",complete = TRUE),
-                         #allowParallel = FALSE,
-                         #search = "random",
+                         number=10, repeats = 8,
                          verboseIter = TRUE
                          )
   return(tryCatch(
@@ -83,7 +77,7 @@ trainCall <- function(i)
     error=function(e) NULL))
   #here the time
 }
-
+models <- list()
 result <- foreach(data = datalist, j=icount() ,.combine = "rbind") %do% {
   # load X and Y (this will be transferred to to train function)
   #data <- datalist
@@ -91,7 +85,7 @@ result <- foreach(data = datalist, j=icount() ,.combine = "rbind") %do% {
   Y = data[,1]
   # use lapply/loop to run everything, required for try/catch error function to work
   t2 <- lapply(m, trainCall)
-  
+  models <- c(models,t2)
   #remove NULL values, we only allow succesful methods, provenance is deleted.
   t2 <- t2[!sapply(t2, is.null)]
   
@@ -141,6 +135,10 @@ result <- foreach(data = datalist, j=icount() ,.combine = "rbind") %do% {
 stopCluster(cl); registerDoSEQ();
 # print all results to R-GUI
 print(result)
+write.csv(result,"result_new.csv")
+save(result,models,file="model_result.RData")
+save.image()
+unlink("model_result.RData")
 #write.csv(df1,"result_new.csv")
 # plot models, just as example
 #ggplot(t2[[1]])

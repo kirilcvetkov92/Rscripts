@@ -1,0 +1,2 @@
+"","noise","algorithm","Accuracy","Kappa","Time","Description"
+"1",50,"rpart2",0.4727,0.1685,4.17000000000002,"CART"
