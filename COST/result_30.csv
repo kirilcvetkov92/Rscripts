@@ -1,2 +1,7 @@
 "","noise","algorithm","Accuracy","Kappa","Time","Description"
-"1",30,"rpart2",0.6385,0.3928,4.72,"CART"
+"1",30,"glmnet",0.6551,0.4176,170.447999999999,"glmnet"
+"2",30,"rpart2",0.6468,0.4105,7.89199999999983,"CART"
+"3",30,"rf",0.6676,0.4448,1620.355,"Random Forest"
+"4",30,"knn",0.6231,0.3623,132.471000000001,"k-Nearest Neighbors"
+"5",30,"svmLinear",0.6612,0.4279,1181.009,"Support Vector Machines with Linear Kernel"
+"6",30,"nb",0.652,0.4117,45.7970000000005,"Naive Bayes"

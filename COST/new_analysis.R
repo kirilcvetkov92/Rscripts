@@ -9,13 +9,13 @@ library(R.utils)
 #library(data.table)
 # clean_data from generate sample from distribution
 #source("Rscripts\\COST\\generate_distribution.R")
-
+set.seed(123)
 noisy_list <- c(0,10,20,30,40,50)
 #noisy_list <- c(0,20)
-clean_data <- read.csv("COST\\clean_data.csv")
-#clean_data <- read.csv("clean_data.csv")
+#clean_data <- read.csv("COST\\clean_data.csv")
+clean_data <- read.csv("clean_data.csv")
 clean_data$X <- NULL
-partition <- createDataPartition(clean_data$Service.Model, p = 0.1, list = FALSE)
+partition <- createDataPartition(clean_data$Service.Model, p = 0.5 , list = FALSE)
 clean_data <- clean_data[partition,]
 
 feature_names <- names(clean_data)
@@ -48,7 +48,9 @@ m <- m[m %in% names(not_two_class_models)]
 print(m)
 m <- c("glmnet","gam","C5.0Rules","rpart2","C5.0Tree","rf","lda","knn","svmLinear","svmRadial","nb","lvq","Mlda","xgbDARTR")
 #m <- c("xgbLinear")
-#m <- c("C5.0Rules")
+#m <- c("glmnet","C5.0Rules","rpart2","C5.0Tree","rf","lda","knn","lvq","svmLinear","nb","Mlda")
+m <- c("glmnet","rpart2","rf","knn","svmLinear","nb")
+#m <- c("xgbLinear")
 
 # show which libraries were loaded  
 sessionInfo()
@@ -56,7 +58,6 @@ sessionInfo()
 # register parallel front-end
 library(doParallel); 
 cl <- makeCluster(detectCores()); 
-#cl <- makeCluster(2); 
 registerDoParallel(cl)
 
 # this setup actually calls the caret::train function, in order to provide
@@ -68,8 +69,11 @@ trainCall <- function(i)
   cat("----------------------------------------------------","\n");
   set.seed(123); cat(i," <- loaded\n");
 
-  control <- trainControl(method="repeatedcv",
-                         number=10, repeats = 8,
+  control <- trainControl(
+			 #method="adaptive_cv",
+			 method="repeatedcv",
+                         number=10 , 
+			 repeats = 3,
                          verboseIter = TRUE
                          )
   return(tryCatch(
@@ -127,8 +131,8 @@ result <- foreach(data = datalist, j=icount() ,.combine = "rbind") %do% {
   # coerce to data frame
   df1 <- data.frame(x0,x1,x2,x3,x4,x5, stringsAsFactors=FALSE)
   names(df1) <- c("noise","algorithm","Accuracy","Kappa","Time","Description")
-  write.csv(df1,paste("COST/result_",as.character(x0[1]),".csv",sep=""))
-  #write.csv(df1,paste("result_",as.character(x0[1]),".csv",sep=""))
+  #write.csv(df1,paste("COST/result_",as.character(x0[1]),".csv",sep=""))
+  write.csv(df1,paste("result_",as.character(x0[1]),".csv",sep=""))
   return(df1)
 }
 # stop cluster and register sequntial front end

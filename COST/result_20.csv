@@ -1,2 +1,7 @@
 "","noise","algorithm","Accuracy","Kappa","Time","Description"
-"1",20,"C5.0Rules",0.7593,0.5818,16.7200000000012,"Single C5.0 Ruleset"
+"1",20,"glmnet",0.7466,0.5544,192.642,"glmnet"
+"2",20,"rpart2",0.7427,0.5565,7.70800000000054,"CART"
+"3",20,"rf",0.7645,0.591,1595.194,"Random Forest"
+"4",20,"knn",0.7048,0.4778,130.875,"k-Nearest Neighbors"
+"5",20,"svmLinear",0.7545,0.5692,926.669,"Support Vector Machines with Linear Kernel"
+"6",20,"nb",0.7439,0.55,46.1289999999999,"Naive Bayes"
