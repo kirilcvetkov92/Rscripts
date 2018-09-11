@@ -5,127 +5,145 @@ library(iterators)
 library(mlbench)
 library(caret)
 library(rpart)
+library(R.utils)
+#library(data.table)
 # clean_data from generate sample from distribution
 #source("Rscripts\\COST\\generate_distribution.R")
-
-clean_data <- read.csv("COST\\clean_data.csv") 
-#clean_data <- read.csv("clean_data.csv")
+set.seed(123)
+noisy_list <- c(0,10,20,30,40,50)
+#noisy_list <- c(0,20)
+#clean_data <- read.csv("COST\\clean_data.csv")
+clean_data <- read.csv("clean_data.csv")
 clean_data$X <- NULL
-partition <- createDataPartition(clean_data$Service.Model, p = 0.001, list = FALSE)
+partition <- createDataPartition(clean_data$Service.Model, p = 0.5 , list = FALSE)
 clean_data <- clean_data[partition,]
-#
 
 feature_names <- names(clean_data)
 iter <- nrow(clean_data)
 
-
-#library(rattle)
-#library(NoiseFiltersR)
-#noisy_data$Service.Model <- as.factor(noisy_data$Service.Model)
-#out <- C45robustFilter(Service.Model ~.,data = noisy_data) 
-#cldata <- out$cleanData
-#print(out)
-#identical(out$cleanData, noisy_data[setdiff(1:nrow(noisy_data),out$remIdx),])
-
-
-#control <- trainControl(method="repeatedcv",
-#                        number=2,
-# repeats=1,
-# allowParallel = FALSE,
-# search = "random",
-# verboseIter = TRUE)
-control <- trainControl(method="boot632",
-                        allowParallel = FALSE,
-                        verboseIter = TRUE)
-tunelen <- 3
-
-# get all model names for multi-class classification
-
-m <- unique(modelLookup()[modelLookup()$forClass,c(1)])
-all_model <-getModelInfo()
-tags <- lapply(all_model,"[[","tags")
-all_model_tags <- lapply(tags, function(x) "Two Class Only" %in% x)
-not_two_class_models <- all_model_tags[!unlist(all_model_tags)]
-
-algos <- m[m %in% names(not_two_class_models)]
-#algos <- algos[1:3]
-
-algos <- c("rpart2","nb","adaboost","xgbLinear","rf")
-#algos <- c("rpart2","rpart")
-#metric <- "Kappa"
-cmodellist <- array(0,dim=c(length(algos),3,1))
-print(algos)
-#noisy_list <- c(0,10,20,30,40,50)
-noisy_list <- c(50)
-pkg <- c("caret")
-
 cl <- makeCluster(detectCores())
 registerDoParallel(cl)
-datalist <- foreach(i = 1:length(noisy_list), .combine = "list") %dopar% {
-  labelnoise <- noisy_list[i]
+
+datalist <- foreach(labelnoise = noisy_list) %dopar% {
+  print(labelnoise)
   noisy_data <- clean_data
   resample <- sample.int(iter, iter/100*labelnoise)
   mylabels <- unique(clean_data$Service.Model)
   for(k in resample){
     myset <- noisy_data[k,]
     noisy_data[k,1] <- sample(mylabels[!(myset$Service.Model == mylabels)],1)
+  }
+  print(head(noisy_data))
+  return(noisy_data)
 }
-return(noisy_data)
-}
+# stop cluster and register sequntial front end
+stopCluster(cl); registerDoSEQ();
 
-#result <- foreach(data = datalist,j=icount(), .combine = rbind) %:% 
- data <- datalist[[1]] 
- j <- 1
-result <-  foreach(algo = algos, .combine = rbind,.packages = pkg) %dopar% {
-      #data <- datalist[[1]]
-      #algo <- algos[[1]]
-      #print(data)
-      set.seed(1234)
-      start.time <- Sys.time()
-      model <- train(Service.Model ~ . ,
-                                      data= data,
-                                      method=algo, 
-                                      #metric=metric,
-                                      trControl=control,
-                                      tuneLength = tunelen)
-      end.time <- Sys.time()
-      time <- as.numeric(end.time - start.time,units="secs")
-      #modellist[j] <- model$finalModel 
-      kappa <- max(model$results$Kappa)
-      accuracy <- max(model$results$Accuracy)
-      #datavec[j] <- datachr
-      #print(datavec)
-      #return(accuracy)
+m <- unique(modelLookup()[modelLookup()$forClass,c(1)])
+all_model <-getModelInfo()
+tags <- lapply(all_model,"[[","tags")
+all_model_tags <- lapply(tags, function(x) "Two Class Only" %in% x)
+not_two_class_models <- all_model_tags[!unlist(all_model_tags)]
+m <- m[m %in% names(not_two_class_models)]
+print(m)
+m <- c("glmnet","gam","C5.0Rules","rpart2","C5.0Tree","rf","lda","knn","svmLinear","svmRadial","nb","lvq","Mlda","xgbDARTR")
+#m <- c("xgbLinear")
+#m <- c("glmnet","C5.0Rules","rpart2","C5.0Tree","rf","lda","knn","lvq","svmLinear","nb","Mlda")
+m <- c("glmnet","rpart2","rf","knn","svmLinear","nb")
+#m <- c("xgbLinear")
+
+# show which libraries were loaded  
+sessionInfo()
+
+# register parallel front-end
+library(doParallel); 
+cl <- makeCluster(detectCores()); 
+registerDoParallel(cl)
+
+# this setup actually calls the caret::train function, in order to provide
+# minimal error handling this type of construct is needed.
+trainCall <- function(i) 
+{
+  tunelen <- 10
+  timeout <- 3600 
+  cat("----------------------------------------------------","\n");
+  set.seed(123); cat(i," <- loaded\n");
+
+  control <- trainControl(
+			 #method="adaptive_cv",
+			 method="repeatedcv",
+                         number=10 , 
+			 repeats = 3,
+                         verboseIter = TRUE
+                         )
+  return(tryCatch(
+    t2 <- withTimeout(train(y=Y, x=X, (i), trControl = control, tuneLength = tunelen),timeout = timeout, onTimeout = "silent"),
+    error=function(e) NULL))
+  #here the time
+}
+models <- list()
+result <- foreach(data = datalist, j=icount() ,.combine = "rbind") %do% {
+  # load X and Y (this will be transferred to to train function)
+  #data <- datalist
+  X = data[,-1]
+  Y = data[,1]
+  # use lapply/loop to run everything, required for try/catch error function to work
+  t2 <- lapply(m, trainCall)
+  models <- c(models,t2)
+  #remove NULL values, we only allow succesful methods, provenance is deleted.
+  t2 <- t2[!sapply(t2, is.null)]
   
-  return(data.frame(noise=noisy_list[j], algo = algo,time = time ,kappa = kappa, accuracy = accuracy))
-  #print(data.frame(k = j, algo = algos, kappa = kappa, accuracy = accuracy))
+  # this setup extracts the results with minimal error handling 
+  # TrainKappa can be sometimes zero, but Accuracy SD can be still available
+  # see Kappa value http://epiville.ccnmtl.columbia.edu/popup/how_to_calculate_kappa.html
+  printCall <- function(i) 
+  {
+    return(tryCatch(
+      {
+        cat(sprintf("%-22s",(m[i])))
+        cat(round(getTrainPerf(t2[[i]])$TrainAccuracy,4),"\t")
+        cat(round(getTrainPerf(t2[[i]])$TrainKappa,4),"\t")
+        cat(t2[[i]]$times$everything[3],"\n")},
+      error=function(e) NULL))
+  }
+  
+  r2 <- lapply(1:length(t2), printCall)
+  
+  # preallocate data types
+  i = 1; MAX = length(t2);
+  x0 <- numeric()   # noise
+  x1 <- character() # Name
+  x2 <- numeric()   # R2
+  x3 <- numeric()   # RMSE
+  x4 <- numeric()   # time [s]
+  x5 <- character() # long model name
+  
+  # fill data and check indexes and NA with loop/lapply 
+  for (i in 1:length(t2)) {
+    x0[i] <- noisy_list[j]
+    x1[i] <- t2[[i]]$method
+    x2[i] <- as.numeric(round(getTrainPerf(t2[[i]])$TrainAccuracy,4))
+    x3[i] <- as.numeric(round(getTrainPerf(t2[[i]])$TrainKappa,4))
+    x4[i] <- as.numeric(t2[[i]]$times$everything[3])
+    x5[i] <- t2[[i]]$modelInfo$label
+  }
+  
+  # coerce to data frame
+  df1 <- data.frame(x0,x1,x2,x3,x4,x5, stringsAsFactors=FALSE)
+  names(df1) <- c("noise","algorithm","Accuracy","Kappa","Time","Description")
+  #write.csv(df1,paste("COST/result_",as.character(x0[1]),".csv",sep=""))
+  write.csv(df1,paste("result_",as.character(x0[1]),".csv",sep=""))
+  return(df1)
 }
-stopCluster(cl)
-
-write.csv(result,"result.csv")
-
-# mytree_clean <- model_clean_default$finalModel
-# mytree_noisy <- model_noisy_default$finalModel
-# mytree_noisy_rm <- model_noisy_rm_default$finalModel
-# max(model_clean_default$results$Accuracy)
-# max(model_noisy_default$results$Accuracy)
-# #fancyRpartPlot(mytree_clean, type = 3)
-# model_noisy_default <- train(Service.Model ~ . ,
-#                              data= noisy_data,
-#                              method=algo, 
-#                              metric=metric,
-#                              trControl=control,
-#                              tuneLength = tunelen)
-# model_noisy_rm_default <- train(Service.Model ~ . ,
-#                                 data= cldata,
-#                                 method=algo, 
-#                                 metric=metric,
-#                                 trControl=control,
-#                                 tuneLength = tunelen)
-# 
-# 
-# library(ggplot2)
-# feature_names
-# ggplot(clean_data, aes_string(feature_names[1],feature_names[5])) + geom_boxplot(aes(colour = Service.Model))
-# library(rgl)
-# hist3d(clean_data$AuM,clean_data$Nr.Positions, alpha=0.4, nclass=10, scale=30)
+# stop cluster and register sequntial front end
+stopCluster(cl); registerDoSEQ();
+# print all results to R-GUI
+print(result)
+write.csv(result,"result_new.csv")
+save(result,models,file="model_result.RData")
+save.image()
+unlink("model_result.RData")
+#write.csv(df1,"result_new.csv")
+# plot models, just as example
+#ggplot(t2[[1]])
+# ggplot(t2[[1]])
